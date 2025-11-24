@@ -1,71 +1,53 @@
 #!/usr/bin/env python3
-import RPi.GPIO as GPIO
+import pigpio
 import time
 
-# ====== Pinbelegung anpassen ======
-OUT_A = 22   # Sensor A OUT (anpassen falls nötig)
-OUT_B = 27   # Sensor B OUT
+OUT_A = 22
+OUT_B = 27
+WINDOW = 0.005   # 5 ms Messfenster
 
-SAMPLE_US = 5000  # wie beim ESP (5 ms)
-SAMPLE_S  = SAMPLE_US / 1_000_000.0
+pi = pigpio.pi()
+if not pi.connected:
+    raise SystemExit("pigpio daemon läuft nicht (sudo pigpiod starten)")
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
-GPIO.setup(OUT_A, GPIO.IN)
-GPIO.setup(OUT_B, GPIO.IN)
+pi.set_mode(OUT_A, pigpio.INPUT)
+pi.set_mode(OUT_B, pigpio.INPUT)
 
-BLACK = 0
-WHITE = 1
+edges_a = 0
+edges_b = 0
 
-def read_freq(pin, window_s=SAMPLE_S):
-    """TCS-Frequenz wie beim ESP aus HIGH-Pulsdauer ableiten."""
-    start = time.perf_counter()
-    # Auf HIGH warten
-    while GPIO.input(pin) == 0:
-        if time.perf_counter() - start > window_s:
-            return 0.0
-    t1 = time.perf_counter()
-    # Warten bis wieder LOW
-    while GPIO.input(pin) == 1:
-        if time.perf_counter() - t1 > window_s:
-            break
-    t2 = time.perf_counter()
+def cb_a(gpio, level, tick):
+    global edges_a
+    if level == 1:      # Rising edge
+        edges_a += 1
 
-    high_time = t2 - t1
-    if high_time <= 0:
-        return 0.0
+def cb_b(gpio, level, tick):
+    global edges_b
+    if level == 1:
+        edges_b += 1
 
-    # wie 500000 / t(µs) -> 1/(2*T) angenähert
-    # hier T = high_time, also f ≈ 1/(2*T)
-    return 1.0 / (2.0 * high_time)
-
-def classifyC(c):
-    # wie in deinem ESP-Code: >7000 = BLACK, sonst WHITE
-    if c > 7000:
-        return BLACK
-    return WHITE
-
-def colorToDigit(c):
-    if c == BLACK:
-        return 0
-    return 1  # WHITE + Fallback
+cba = pi.callback(OUT_A, pigpio.RISING_EDGE, cb_a)
+cbb = pi.callback(OUT_B, pigpio.RISING_EDGE, cb_b)
 
 try:
     while True:
-        ca = read_freq(OUT_A)
-        cb = read_freq(OUT_B)
+        edges_a = 0
+        edges_b = 0
 
-        colorA = classifyC(ca)
-        colorB = classifyC(cb)
+        start = time.time()
+        time.sleep(WINDOW)
+        dt = time.time() - start
 
-        da = colorToDigit(colorA)
-        db = colorToDigit(colorB)
+        fa = edges_a / (2.0 * dt)  # 2 Flanken pro Periode
+        fb = edges_b / (2.0 * dt)
 
-        # Rohwerte (Frequenz in Hz) ausgeben — zwei Werte nebeneinander
-        # Beispiel: "12.34 56.78"
-        print(f"{ca:.2f} {cb:.2f}")
+        # ROH-Werte
+        print(f"{fa:.0f} {fb:.0f}")
 
-        time.sleep(0.01)  # ~100 Hz wie beim ESP (delay(10))
+        # kannst du kleiner machen
+        time.sleep(0.001)
 
 except KeyboardInterrupt:
-    GPIO.cleanup()
+    cba.cancel()
+    cbb.cancel()
+    pi.stop()
