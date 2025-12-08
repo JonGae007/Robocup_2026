@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import time
 import RPi.GPIO as GPIO
-import setup # eigene setup Datei
+from motor import *
 
 SWITCH_PIN = 25  # Schalter-Pin (BCM)
 
@@ -18,14 +18,15 @@ def schalterGedrueckt():
     return GPIO.input(SWITCH_PIN) == GPIO.LOW
 
 def main():
-    while True:
-        if schalterGedrueckt():
-            try: # Main Programm
-                print("GEDRÜCKT")
-                time.sleep(0.5)
-            except KeyboardInterrupt:
-                GPIO.cleanup()
+    try:
+        while True:
+            while schalterGedrueckt():
+                forward(80)
+            stop()
+            time.sleep(0.01)
+    except KeyboardInterrupt:
+        stop()
+        cleanup()
 
 if __name__ == '__main__':
     main()
-    #put main.py
