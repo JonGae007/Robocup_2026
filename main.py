@@ -2,6 +2,7 @@
 import time
 import RPi.GPIO as GPIO
 from motor import *
+from sensor import get_sensor
 
 SWITCH_PIN = 25  # Schalter-Pin (BCM)
 
@@ -23,6 +24,9 @@ def main():
             while schalterGedrueckt():
                 forward(80)
             stop()
+            freq_links = get_sensor('l')
+            freq_rechts = get_sensor('r')
+            print(f"Links: {freq_links:.0f} Hz, Rechts: {freq_rechts:.0f} Hz")
             time.sleep(0.01)
     except KeyboardInterrupt:
         stop()

@@ -1,33 +1,28 @@
 #!/usr/bin/env python3
-import pigpio
+import RPi.GPIO as GPIO
 import time
 
 OUT_A = 22
 OUT_B = 27
 WINDOW = 0.005   # 5 ms Messfenster
 
-pi = pigpio.pi()
-if not pi.connected:
-    raise SystemExit("pigpio daemon läuft nicht (sudo pigpiod starten)")
-
-pi.set_mode(OUT_A, pigpio.INPUT)
-pi.set_mode(OUT_B, pigpio.INPUT)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(OUT_A, GPIO.IN)
+GPIO.setup(OUT_B, GPIO.IN)
 
 edges_a = 0
 edges_b = 0
 
-def cb_a(gpio, level, tick):
-    global edges_a
-    if level == 1:      # Rising edge
-        edges_a += 1
+def cb_a(channel):
+    global edges_a 
+    edges_a += 1
 
-def cb_b(gpio, level, tick):
+def cb_b(channel):
     global edges_b
-    if level == 1:
-        edges_b += 1
+    edges_b += 1
 
-cba = pi.callback(OUT_A, pigpio.RISING_EDGE, cb_a)
-cbb = pi.callback(OUT_B, pigpio.RISING_EDGE, cb_b)
+GPIO.add_event_detect(OUT_A, GPIO.RISING, callback=cb_a)
+GPIO.add_event_detect(OUT_B, GPIO.RISING, callback=cb_b)
 
 try:
     while True:
@@ -48,6 +43,4 @@ try:
         time.sleep(0.001)
 
 except KeyboardInterrupt:
-    cba.cancel()
-    cbb.cancel()
-    pi.stop()
+    GPIO.cleanup()
