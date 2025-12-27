@@ -40,7 +40,7 @@ try:
         print(f"{fa:.0f} {fb:.0f}")
 
         # kannst du kleiner machen
-        time.sleep(0.001)
+        time.sleep(1)
 
 except KeyboardInterrupt:
     GPIO.cleanup()

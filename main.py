@@ -12,8 +12,8 @@ GPIO.setwarnings(False)
 GPIO.setup(SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 DEBOUNCE = 0.02
-speed = 1
-speedt = 10
+speed = 2
+speedt = 2
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
@@ -25,18 +25,19 @@ def main():
         print("Bereit")
         while True:
             while schalterGedrueckt():
-                forward(5)
+                forward(speed)
                 links = get_sensor('l') 
                 rechts = get_sensor('r')
+                print(f"Links: {links}, Rechts: {rechts}")
 
-                if(links < 900 and not(rechts < 900)):
+                if(links > 650):
                     turn_left(speedt)
-                    time.sleep(0.04)
-                    stop()
-                if(rechts < 900 and not(links < 900)):
+                    time.sleep(0.1)
+                if(rechts >650):
                     turn_right(speedt)
-                    time.sleep(0.04)
-                    stop()
+                    time.sleep(0.1)
+                stop()
+                time.sleep(0.5)
             stop()
     except KeyboardInterrupt:
         stop()
