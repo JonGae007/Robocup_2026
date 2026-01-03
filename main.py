@@ -9,6 +9,7 @@ from motor import *
 SWITCH_PIN = 25  # Schalter-Pin (BCM)
 SENSOR_LEFT_PIN = 5   # GPIO5 - entspricht Pin 16 (links) am ESP32
 SENSOR_RIGHT_PIN = 6  # GPIO6 - entspricht Pin 17 (rechts) am ESP32
+GRUEN_PIN = 22       # GPIO22 - entspricht Pin 22 (gruen) am ESP32
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -36,7 +37,8 @@ def read_sensors():
     try:
         sensor_left = GPIO.input(SENSOR_LEFT_PIN)   # 0 = weiß, 1 = schwarz
         sensor_right = GPIO.input(SENSOR_RIGHT_PIN)  # 0 = weiß, 1 = schwarz
-        return sensor_left, sensor_right
+        gruen = GPIO.input(GRUEN_PIN)  # 1 = gruen
+        return sensor_left, sensor_right, gruen
     except ValueError:
         return None, None
 
@@ -45,7 +47,7 @@ def line_follow():
     print("Linienverfolger aktiv")
     
     while schalterGedrueckt():
-        left, right = read_sensors()
+        left, right, gruen = read_sensors()
         
         if left is None or right is None:
             continue  # ungültige Daten, nächster Durchlauf
