@@ -1,46 +1,98 @@
 #!/usr/bin/env python3
+import sys
 import time
+import traceback
+
 import RPi.GPIO as GPIO
 from motor import *
-from sensor import get_sensor
 
 SWITCH_PIN = 25  # Schalter-Pin (BCM)
+SENSOR_LEFT_PIN = 5   # GPIO5 - entspricht Pin 16 (links) am ESP32
+SENSOR_RIGHT_PIN = 6  # GPIO6 - entspricht Pin 17 (rechts) am ESP32
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-# interner Pull-Up, weil Schalter nach GND geht
 GPIO.setup(SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(SENSOR_LEFT_PIN, GPIO.IN)
+GPIO.setup(SENSOR_RIGHT_PIN, GPIO.IN)
 
 DEBOUNCE = 0.02
-speed = 2
-speedt = 2
+
+# Linienverfolger Konfiguration
+BASE_SPEED = 10        # Grundgeschwindigkeit
+TURN_SPEED = 50        # Geschwindigkeit beim Abbiegen
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
-    time.sleep(DEBOUNCE)  # Entprelslung
+    time.sleep(DEBOUNCE)
     return GPIO.input(SWITCH_PIN) == GPIO.LOW
+
+def read_sensors():
+    """Liest die beiden Sensordaten vom ESP32 über GPIO.
+    
+    Returns:
+        tuple: (sensor_left, sensor_right) - 0 für weiß/keine Linie, 1 für schwarz/Linie
+    """
+    try:
+        sensor_left = GPIO.input(SENSOR_LEFT_PIN)   # 0 = weiß, 1 = schwarz
+        sensor_right = GPIO.input(SENSOR_RIGHT_PIN)  # 0 = weiß, 1 = schwarz
+        return sensor_left, sensor_right
+    except ValueError:
+        return None, None
+
+def line_follow():
+    """Hauptschleife für Linienverfolgung."""
+    print("Linienverfolger aktiv")
+    
+    while schalterGedrueckt():
+        left, right = read_sensors()
+        
+        if left is None or right is None:
+            continue  # ungültige Daten, nächster Durchlauf
+        
+        # Steuerungslogik
+        if left and right:
+            # Beide Sensoren auf Linie -> Geradeaus
+            forward(BASE_SPEED)
+            status = "Geradeaus"
+            time.sleep(0.01)
+        elif left and not right:
+            # Nur linker Sensor auf Linie -> Nach rechts korrigieren
+            turn_left(TURN_SPEED)
+            status = "Rechts"
+        elif not left and right:
+            # Nur rechter Sensor auf Linie -> Nach links korrigieren
+            turn_right(TURN_SPEED)
+            status = "Links"
+        else:
+            # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
+            forward(BASE_SPEED // 2)
+            status = "Linie verloren"
+        
+        print(f"L: {left:4d} | R: {right:4d} | {status}")
 
 def main():
     try:
-        print("Bereit")
+        print("Bereit. Schalter drücken zum Starten...")
+        
         while True:
-            while schalterGedrueckt():
-                forward(speed)
-                links = get_sensor('l') 
-                rechts = get_sensor('r')
-                print(f"Links: {links}, Rechts: {rechts}")
-
-                if(links > 650):
-                    turn_left(speedt)
-                    time.sleep(0.1)
-                if(rechts >650):
-                    turn_right(speedt)
-                    time.sleep(0.1)
+            if schalterGedrueckt():
+                line_follow()
+            else:
                 stop()
-                time.sleep(0.5)
-            stop()
+                time.sleep(0.01)
+            
     except KeyboardInterrupt:
-        stop()
+        print("\nBeendet durch Benutzer (STRG+C).")
+    except Exception as exc:
+        print(f"Fehler aufgetreten: {exc}")
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        try:
+            stop()
+        except:
+            pass
         cleanup()
 
 if __name__ == '__main__':
