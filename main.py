@@ -16,6 +16,7 @@ GPIO.setwarnings(False)
 GPIO.setup(SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SENSOR_LEFT_PIN, GPIO.IN)
 GPIO.setup(SENSOR_RIGHT_PIN, GPIO.IN)
+GPIO.setup(GRUEN_PIN, GPIO.IN)
 
 DEBOUNCE = 0.02
 
@@ -40,7 +41,7 @@ def read_sensors():
         gruen = GPIO.input(GRUEN_PIN)  # 1 = gruen
         return sensor_left, sensor_right, gruen
     except ValueError:
-        return None, None
+        return None, None, None
 
 def line_follow():
     """Hauptschleife für Linienverfolgung."""
@@ -49,6 +50,31 @@ def line_follow():
     while schalterGedrueckt():
         left, right, gruen = read_sensors()
         
+    
+        if gruen and left:
+            
+            if gruen and right:
+                turn_left(TURN_SPEED)
+                time.sleep(1.0)
+            else:
+                turn_left(TURN_SPEED)
+                time.sleep(0.4)
+
+        if gruen and right:
+            
+            if gruen and left:
+                turn_left(TURN_SPEED)
+                time.sleep(1.0)
+            else:
+                turn_right(TURN_SPEED)
+                time.sleep(0.4)
+
+        if gruen and left and right:
+            turn_left(TURN_SPEED)
+            time.sleep(1.0)
+
+                
+
         if left is None or right is None:
             continue  # ungültige Daten, nächster Durchlauf
         
@@ -57,7 +83,7 @@ def line_follow():
             # Beide Sensoren auf Linie -> Geradeaus
             forward(BASE_SPEED)
             status = "Geradeaus"
-            time.sleep(0.01)
+            
         elif left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
