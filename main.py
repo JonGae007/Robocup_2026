@@ -121,7 +121,7 @@ def main():
             stop()
         except:
             pass
-        cleanup()
+        cleanup() 
 
 if __name__ == '__main__':
     main()
