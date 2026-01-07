@@ -85,13 +85,13 @@ def line_follow():
             status = "Geradeaus"
             
         elif left and not right:
-            # Nur linker Sensor auf Linie -> Nach rechts korrigieren
+            # Nur linker Sensor auf Linie -> Nach links korrigieren
             turn_left(TURN_SPEED)
-            status = "Rechts"
-        elif not left and right:
-            # Nur rechter Sensor auf Linie -> Nach links korrigieren
-            turn_right(TURN_SPEED)
             status = "Links"
+        elif not left and right:
+            # Nur rechter Sensor auf Linie -> Nach rechts korrigieren
+            turn_right(TURN_SPEED)
+            status = "Rechts"
         else:
             # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
             forward(BASE_SPEED // 2)
