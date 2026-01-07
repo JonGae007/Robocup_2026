@@ -5,6 +5,10 @@ import time
 OUT_A = 22  # Ausgang Sensor links
 OUT_B = 27  # Ausgang Sensor rechts
 
+# Ultraschall-Sensor (HC-SR04) Pins (BCM)
+TRIG = 23   # BCM
+ECHO = 24   # BCM
+
 # Neue Pinbelegung (BCM) für zwei TCS230/TCS3200-Module, je 4 Steuerleitungen:
 # Sensor links:  S0=4, S1=5, S2=6, S3=7
 # Sensor rechts: S0=8, S1=9, S2=10, S3=11
@@ -36,8 +40,14 @@ COLOR_FILTERS = {
 }
 
 GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 GPIO.setup(OUT_A, GPIO.IN)
 GPIO.setup(OUT_B, GPIO.IN)
+
+# Setup für Ultraschall
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+GPIO.output(TRIG, False)
 
 def _setup_control_pins(mapping):
     for pin in mapping.values():
@@ -72,6 +82,43 @@ def _measure_window():
     freq_left = edges_a / (2.0 * dt)
     freq_right = edges_b / (2.0 * dt)
     return freq_left, freq_right
+
+
+def measure_distance():
+    """
+    Misst die Distanz mit einem HC-SR04 Ultraschallsensor.
+
+    Returns:
+        float|None: Distanz in cm oder None bei Timeout/Fehler
+    """
+    # Trigger-Puls: 10 µs HIGH
+    GPIO.output(TRIG, False)
+    time.sleep(0.0002)
+    GPIO.output(TRIG, True)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+
+    # Auf steigende Flanke warten (Start)
+    start_time = time.time()
+    timeout = start_time + 0.02  # 20 ms Timeout
+    while GPIO.input(ECHO) == 0:
+        start_time = time.time()
+        if start_time > timeout:
+            return None
+
+    # Auf fallende Flanke warten (Ende)
+    stop_time = time.time()
+    timeout = stop_time + 0.02
+    while GPIO.input(ECHO) == 1:
+        stop_time = time.time()
+        if stop_time > timeout:
+            return None
+
+    # Zeitdifferenz
+    elapsed = stop_time - start_time
+    # Schallgeschwindigkeit ~34300 cm/s, hin und zurück -> /2
+    distance_cm = (elapsed * 34300) / 2.0
+    return distance_cm
 
 def _set_scaling(scale="100"):
     """Setzt S0/S1 auf das gewünschte Frequenz-Scaling (beide Sensoren)."""
@@ -131,13 +178,19 @@ if __name__ == "__main__":
         _set_scaling("100")  # 100 % Output-Scaling; nach Bedarf anpassen
         while True:
             all_values = read_all_colors()
+            dist = measure_distance()
+            if dist is not None:
+                dist_str = f"{dist:.1f} cm"
+            else:
+                dist_str = "Messfehler"
             print(
                 f"R L/R: {all_values['r'][0]:.0f}/{all_values['r'][1]:.0f} Hz | "
                 f"G L/R: {all_values['g'][0]:.0f}/{all_values['g'][1]:.0f} Hz | "
                 f"B L/R: {all_values['b'][0]:.0f}/{all_values['b'][1]:.0f} Hz | "
-                f"C L/R: {all_values['c'][0]:.0f}/{all_values['c'][1]:.0f} Hz"
+                f"C L/R: {all_values['c'][0]:.0f}/{all_values['c'][1]:.0f} Hz | "
+                f"Dist: {dist_str}"
             )
-            time.sleep(0.01)
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         GPIO.cleanup()
