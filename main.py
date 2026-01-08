@@ -133,23 +133,35 @@ def line_follow():
             continue  # ungültige Daten, nächster Durchlauf
         
         # Steuerungslogik
-        if left and right:
+        if left and right and not gruen:
             # Beide Sensoren auf Linie -> Geradeaus
             forward(BASE_SPEED)
             status = "Geradeaus"
             
-        elif left and not right:
+        elif left and not right and not gruen:
             # Nur linker Sensor auf Linie -> Nach links korrigieren
             turn_left(TURN_SPEED)
             status = "Links"
-        elif not left and right:
+        elif not left and right and not gruen:
             # Nur rechter Sensor auf Linie -> Nach rechts korrigieren
             turn_right(TURN_SPEED)
             status = "Rechts"
         else:
             # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
             forward(BASE_SPEED // 2)
+            time.sleep(0.3)
             status = "Linie verloren"
+            turn_right(TURN_SPEED)
+            time.sleep(0.2)
+            if not right and not left:
+                turn_left(TURN_SPEED)
+                time.sleep(0.4)
+                if not right and not left:
+                    turn_right(TURN_SPEED)
+                    time.sleep(0.2)
+                    backward(BASE_SPEED)
+                    time.sleep(0.3)
+
         
         print(f"L: {left:4d} | R: {right:4d} | {status}")
 
