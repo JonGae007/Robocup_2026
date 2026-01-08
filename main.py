@@ -16,12 +16,13 @@ GPIO.setwarnings(False)
 GPIO.setup(SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SENSOR_LEFT_PIN, GPIO.IN)
 GPIO.setup(SENSOR_RIGHT_PIN, GPIO.IN)
+GPIO.setup(GRUEN_PIN, GPIO.IN)
 
 DEBOUNCE = 0.02
 
 # Linienverfolger Konfiguration
-BASE_SPEED = 10        # Grundgeschwindigkeit
-TURN_SPEED = 50        # Geschwindigkeit beim Abbiegen
+BASE_SPEED = 20        # Grundgeschwindigkeit
+TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
@@ -40,7 +41,7 @@ def read_sensors():
         gruen = GPIO.input(GRUEN_PIN)  # 1 = gruen
         return sensor_left, sensor_right, gruen
     except ValueError:
-        return None, None
+        return None, None, None
 
 def line_follow():
     """Hauptschleife für Linienverfolgung."""
@@ -61,11 +62,15 @@ def line_follow():
         elif left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
+            time.sleep(0.01)
             status = "Rechts"
+            forward(BASE_SPEED)
         elif not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
+            time.sleep(0.01)
             status = "Links"
+            forward(BASE_SPEED)
         else:
             # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
             forward(BASE_SPEED // 2)
