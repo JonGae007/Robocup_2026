@@ -16,12 +16,13 @@ GPIO.setwarnings(False)
 GPIO.setup(SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SENSOR_LEFT_PIN, GPIO.IN)
 GPIO.setup(SENSOR_RIGHT_PIN, GPIO.IN)
+GPIO.setup(GRUEN_PIN, GPIO.IN)
 
 DEBOUNCE = 0.02
 
 # Linienverfolger Konfiguration
-BASE_SPEED = 10        # Grundgeschwindigkeit
-TURN_SPEED = 50        # Geschwindigkeit beim Abbiegen
+BASE_SPEED = 20        # Grundgeschwindigkeit
+TURN_SPEED = 20        # Geschwindigkeit beim Abbiegen
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
@@ -30,7 +31,6 @@ def schalterGedrueckt():
 
 def read_sensors():
     """Liest die beiden Sensordaten vom ESP32 über GPIO.
-    
     Returns:
         tuple: (sensor_left, sensor_right) - 0 für weiß/keine Linie, 1 für schwarz/Linie
     """
@@ -40,7 +40,7 @@ def read_sensors():
         gruen = GPIO.input(GRUEN_PIN)  # 1 = gruen
         return sensor_left, sensor_right, gruen
     except ValueError:
-        return None, None
+        return None, None, None
 
 def line_follow():
     """Hauptschleife für Linienverfolgung."""
@@ -53,25 +53,65 @@ def line_follow():
             continue  # ungültige Daten, nächster Durchlauf
         
         # Steuerungslogik
-        if left and right:
+        if left and right and not gruen:
             # Beide Sensoren auf Linie -> Geradeaus
             forward(BASE_SPEED)
+            time.sleep(0.8)
             status = "Geradeaus"
-            time.sleep(0.01)
-        elif left and not right:
-            # Nur linker Sensor auf Linie -> Nach rechts korrigieren
+            
+        while left and not right and not gruen:
+            # Nur linker Sensor auf Linie -> Nach links korrigieren
             turn_left(TURN_SPEED)
-            status = "Rechts"
-        elif not left and right:
-            # Nur rechter Sensor auf Linie -> Nach links korrigieren
-            turn_right(TURN_SPEED)
             status = "Links"
+            left, right, gruen = read_sensors()
+
+        while not left and right and not gruen:
+            # Nur rechter Sensor auf Linie -> Nach rechts korrigieren
+            turn_right(TURN_SPEED)
+            status = "Rechts"
+            left, right, gruen = read_sensors()
+
         else:
             # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
             forward(BASE_SPEED // 2)
             status = "Linie verloren"
         
         print(f"L: {left:4d} | R: {right:4d} | {status}")
+
+        if gruen:
+            if gruen and left and right:
+                turn_left(TURN_SPEED)
+                stop()
+
+            elif gruen and left and not right:
+                backward(20)
+                time.sleep(0.2)
+                turn_left(10)
+                time.sleep(0.1)
+                turn_right(10)
+                time.sleep(0.05)
+                if gruen and left and not right:
+                    turn_left(TURN_SPEED)
+                    time.sleep(0.7)
+                elif gruen and left and right:
+                    turn_left(TURN_SPEED)
+                    stop()
+            elif gruen and not left and right:
+                backward(20)
+                time.sleep(0.2)
+                turn_left(10)
+                time.sleep(0.1)
+                turn_right(10)
+                time.sleep(0.05)
+                if gruen and not left and right:
+                    turn_left(TURN_SPEED)
+                    time.sleep(0.7)
+                elif gruen and left and right:
+                    turn_left(TURN_SPEED)
+                    stop()
+            
+
+            
 
 def main():
     try:
