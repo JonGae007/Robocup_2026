@@ -75,6 +75,39 @@ def line_follow():
         
         print(f"L: {left:4d} | R: {right:4d} | {status}")
 
+    
+    if gruen:
+            if left and not right:
+                while gruen and left:
+                    turn_left(TURN_SPEED)
+                    left, right, gruen = read_sensors()
+                    if gruen and right:
+                        break
+                if gruen and right:
+                    turn_right(TURN_SPEED)
+                    time.sleep(HALF_TIME) #180° anpassen nach bedarf
+                else:
+                    turn_left(TURN_SPEED)
+                    time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+
+            if right and left:
+                turn_left(TURN_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf 
+            
+            if not left and right:
+                while gruen and right:
+                    turn_right(TURN_SPEED)
+                    left, right, gruen = read_sensors()
+                    if gruen and left:
+                        break
+                if gruen and left:
+                    turn_right(TURN_SPEED)
+                    time.sleep(HALF_TIME) #180° anpassen nach bedarf
+                else:
+                    turn_right(TURN_SPEED)
+                    time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                
+
 def main():
     try:
         print("Bereit. Schalter drücken zum Starten...")
