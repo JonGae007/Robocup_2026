@@ -2,6 +2,7 @@
 import sys
 import time
 import traceback
+import threading
 
 import RPi.GPIO as GPIO
 from motor import *
@@ -20,9 +21,21 @@ GPIO.setup(GRUEN_PIN, GPIO.IN)
 
 DEBOUNCE = 0.02
 
+WHITE_THRESHOLD = 4.0  # Sekunden bis Aktion
+
+global _white_start_time
+left, right, threshold=WHITE_THRESHOLD
+# Timer für Fall "nur Weiß gesehen":
+_white_start_time = None
+
+
+
+
 # Linienverfolger Konfiguration
 BASE_SPEED = 20        # Grundgeschwindigkeit
 TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
+QUARTER_TIME = 1    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
+HALF_TIME = 2       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
@@ -39,7 +52,8 @@ def read_sensors():
         sensor_left = GPIO.input(SENSOR_LEFT_PIN)   # 0 = weiß, 1 = schwarz
         sensor_right = GPIO.input(SENSOR_RIGHT_PIN)  # 0 = weiß, 1 = schwarz
         gruen = GPIO.input(GRUEN_PIN)  # 1 = gruen
-        return sensor_left, sensor_right, gruen
+        # Timer-Überwachung: starte/aktualisiere den Weiß-Timer
+        
     except ValueError:
         return None, None, None
 
@@ -59,54 +73,78 @@ def line_follow():
             forward(BASE_SPEED)
             status = "Geradeaus"
             left, right, gruen = read_sensors()
+            if gruen and right and not left:
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+
+            if gruen and left and not right:
+                turn_left(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                
+            if gruen and left and right:
+                forward(BASE_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
             status = "Rechts"
             forward(BASE_SPEED)
             left, right, gruen = read_sensors()
+            if gruen and right and not left:
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+
+            if gruen and left and not right:
+                turn_left(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                
+            if gruen and left and right:
+                forward(BASE_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
             status = "Links"
             left, right, gruen = read_sensors()
+            if gruen and right and not left:
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
 
-        forward(BASE_SPEED)
-        
-        print(f"L: {left:4d} | R: {right:4d} | {status}")
-
-    
-    if gruen:
-            if left and not right:
-                while gruen and left:
-                    turn_left(TURN_SPEED)
-                    left, right, gruen = read_sensors()
-                    if gruen and right:
-                        break
-                if gruen and right:
-                    turn_right(TURN_SPEED)
-                    time.sleep(HALF_TIME) #180° anpassen nach bedarf
-                else:
-                    turn_left(TURN_SPEED)
-                    time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-
-            if right and left:
+            if gruen and left and not right:
                 turn_left(TURN_SPEED)
-                time.sleep(HALF_TIME) #180° anpassen nach bedarf 
-            
-            if not left and right:
-                while gruen and right:
-                    turn_right(TURN_SPEED)
-                    left, right, gruen = read_sensors()
-                    if gruen and left:
-                        break
-                if gruen and left:
-                    turn_right(TURN_SPEED)
-                    time.sleep(HALF_TIME) #180° anpassen nach bedarf
-                else:
-                    turn_right(TURN_SPEED)
-                    time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
                 
+            if gruen and left and right:
+                forward(BASE_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf
+
+        if not left and not right:
+            if _white_start_time is None:
+                _white_start_time = time.time()
+            else:
+               elapsed = time.time() - _white_start_time
+               forward(BASE_SPEED)
+               if elapsed >= threshold:
+                    # Aktion: kurz stoppen, dann drehen
+                    stop()
+                    time.sleep(0.2)
+                    # Drehe (90°) — Richtung kann bei Bedarf angepasst werden
+                    turn_right(TURN_SPEED)
+                    time.sleep(QUARTER_TIME)
+                    stop()
+                    # Timer zurücksetzen nach Aktion
+                    _white_start_time = None
+        else:
+            _white_start_time = None
+
+        print(f"L: {left:4d} | R: {right:4d} ")
+
+
+        # Endzone legacy check removed — Timer handled in read_sensors()/update_white_timer
+
+
+
+
 
 def main():
     try:
