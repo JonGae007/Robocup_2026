@@ -164,14 +164,7 @@ def main():
                 line_follow()
             else:
                 stop()
-                # Ultraschall-Entfernungen auslesen, wenn nicht aktiv
-                try:
-                    d1, d2 = sensors.read_ultrasonics()
-                    print(f"US1: {d1 if d1 is not None else 'Timeout':>7} cm | US2: {d2 if d2 is not None else 'Timeout':>7} cm")
-                except Exception:
-                    # Bei Problemen mit GPIO/Hardware nicht abstürzen
-                    pass
-                time.sleep(0.5)
+                time.sleep(0.01)
             
     except KeyboardInterrupt:
         print("\nBeendet durch Benutzer (STRG+C).")
