@@ -10,6 +10,7 @@ SWITCH_PIN = 25  # Schalter-Pin (BCM)
 SENSOR_LEFT_PIN = 5   # GPIO5 - entspricht Pin 16 (links) am ESP32
 SENSOR_RIGHT_PIN = 6  # GPIO6 - entspricht Pin 17 (rechts) am ESP32
 GRUEN_PIN = 22       # GPIO22 - entspricht Pin 22 (gruen) am ESP32
+LED_PIN = 8          # GPIO8 - LED für Grün-Erkennung
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -17,14 +18,16 @@ GPIO.setup(SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SENSOR_LEFT_PIN, GPIO.IN)
 GPIO.setup(SENSOR_RIGHT_PIN, GPIO.IN)
 GPIO.setup(GRUEN_PIN, GPIO.IN)
+GPIO.setup(LED_PIN, GPIO.OUT)
+GPIO.output(LED_PIN, GPIO.LOW)
 
 DEBOUNCE = 0.02
 
 # Linienverfolger Konfiguration
 BASE_SPEED = 20        # Grundgeschwindigkeit
 TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
-QUARTER_TIME = 1    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
-HALF_TIME = 2       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
+QUARTER_TIME = 0.5    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
+HALF_TIME = 1       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
@@ -45,6 +48,38 @@ def read_sensors():
     except ValueError:
         return None, None, None
 
+def check_green_and_react(left, right, gruen):
+    """Prüft auf Grün-Erkennung und reagiert entsprechend.
+    
+    Args:
+        left: Sensor links Wert
+        right: Sensor rechts Wert  
+        gruen: Grün-Sensor Wert
+    """
+    if gruen and right and not left:
+        GPIO.output(LED_PIN, GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(LED_PIN, GPIO.LOW)
+        turn_right(TURN_SPEED)
+        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+        time.sleep(0.2)
+
+    if gruen and left and not right:
+        GPIO.output(LED_PIN, GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(LED_PIN, GPIO.LOW)
+        turn_left(TURN_SPEED)
+        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+        forward(BASE_SPEED)
+        time.sleep(0.1)
+        
+    if gruen and left and right:
+        GPIO.output(LED_PIN, GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(LED_PIN, GPIO.LOW)
+        turn_right(TURN_SPEED)
+        time.sleep(HALF_TIME)  # 180° anpassen nach bedarf
+
 def line_follow():
     """Hauptschleife für Linienverfolgung."""
     print("Linienverfolger aktiv")
@@ -61,50 +96,20 @@ def line_follow():
             forward(BASE_SPEED)
             status = "Geradeaus"
             left, right, gruen = read_sensors()
-            if gruen and right and not left:
-                turn_right(TURN_SPEED)
-                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-
-            if gruen and left and not right:
-                turn_left(TURN_SPEED)
-                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-                
-            if gruen and left and right:
-                forward(BASE_SPEED)
-                time.sleep(HALF_TIME) #180° anpassen nach bedarf
+            check_green_and_react(left, right, gruen)
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
             status = "Rechts"
             forward(BASE_SPEED)
             left, right, gruen = read_sensors()
-            if gruen and right and not left:
-                turn_right(TURN_SPEED)
-                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-
-            if gruen and left and not right:
-                turn_left(TURN_SPEED)
-                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-                
-            if gruen and left and right:
-                forward(BASE_SPEED)
-                time.sleep(HALF_TIME) #180° anpassen nach bedarf
+            check_green_and_react(left, right, gruen)
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
             status = "Links"
             left, right, gruen = read_sensors()
-            if gruen and right and not left:
-                turn_right(TURN_SPEED)
-                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-
-            if gruen and left and not right:
-                turn_left(TURN_SPEED)
-                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-                
-            if gruen and left and right:
-                forward(BASE_SPEED)
-                time.sleep(HALF_TIME) #180° anpassen nach bedarf
+            check_green_and_react(left, right, gruen)
 
         forward(BASE_SPEED)
         
