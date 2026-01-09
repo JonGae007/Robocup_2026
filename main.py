@@ -23,8 +23,8 @@ DEBOUNCE = 0.02
 # Linienverfolger Konfiguration
 BASE_SPEED = 20        # Grundgeschwindigkeit
 TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
-HALF_TIME = 0.5      # Zeit für eine 180° Drehung (anpassen nach Bedarf)
-QUARTER_TIME = 0.25    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
+QUARTER_TIME = 1    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
+HALF_TIME = 2       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
 
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
@@ -45,20 +45,6 @@ def read_sensors():
     except ValueError:
         return None, None, None
 
-def check_green():
-    left, right, gruen = read_sensors()
-    if gruen and right and not left:
-        turn_right(TURN_SPEED)
-        time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-
-    if gruen and left and not right:
-        turn_left(TURN_SPEED)
-        time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-        
-    if gruen and left and right:
-        forward(BASE_SPEED)
-        time.sleep(HALF_TIME) #180° anpassen nach bedarf
-
 def line_follow():
     """Hauptschleife für Linienverfolgung."""
     print("Linienverfolger aktiv")
@@ -73,36 +59,57 @@ def line_follow():
         while left and right:
             # Beide Sensoren auf Linie -> Geradeaus
             forward(BASE_SPEED)
+            status = "Geradeaus"
             left, right, gruen = read_sensors()
-            check_green()
+            if gruen and right and not left:
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+
+            if gruen and left and not right:
+                turn_left(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                
+            if gruen and left and right:
+                forward(BASE_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
+            status = "Rechts"
             forward(BASE_SPEED)
             left, right, gruen = read_sensors()
-            check_green
+            if gruen and right and not left:
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+
+            if gruen and left and not right:
+                turn_left(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                
+            if gruen and left and right:
+                forward(BASE_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
+            status = "Links"
             left, right, gruen = read_sensors()
-            check_green
+            if gruen and right and not left:
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+
+            if gruen and left and not right:
+                turn_left(TURN_SPEED)
+                time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
+                
+            if gruen and left and right:
+                forward(BASE_SPEED)
+                time.sleep(HALF_TIME) #180° anpassen nach bedarf
 
         forward(BASE_SPEED)
         
-        print(f"L: {left:4d} | R: {right:4d}")
-
-        if gruen and right:
-            turn_right(TURN_SPEED)
-            time.sleep(QUARTER_TIME) #90° anpassen nach bedarf
-
-        if gruen and left:
-            turn_left(TURN_SPEED)
-            time.sleep(QUARTER_TIME) #90° anpassen nach bedarf 
         
-        if gruen and left and right:
-            forward(BASE_SPEED)
-            time.sleep(HALF_TIME) #180° anpassen nach bedarf
-                
+        print(f"L: {left:4d} | R: {right:4d} ")
 
 def main():
     try:
