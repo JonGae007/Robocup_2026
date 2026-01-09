@@ -50,14 +50,27 @@ def endzone(left, right, threshold=4.0):
             elapsed = time.time() - _white_start_time
             forward(BASE_SPEED)
             if elapsed >= threshold:
-                # Aktion: kurz stoppen, dann drehen
-                stop()
-                time.sleep(0.2)
-                # Drehe (90°) — Richtung kann bei Bedarf angepasst werden
-                turn_right(TURN_SPEED)
-                time.sleep(QUARTER_TIME)
-                stop()
-                # Timer zurücksetzen nach Aktion
+                USvorne, USrechts = sensors.read_ultrasonics()
+                while not left and not right:
+                    USvorne, USrechts = sensors.read_ultrasonics()
+                    left, right, gruen = read_sensors()
+                    if USrechts > 10:
+                        turn_right(TURN_SPEED)
+                        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+                        while USvorne > 10:
+                            forward(BASE_SPEED)
+                            USvorne, USrechts = sensors.read_ultrasonics()
+                            left, right, gruen = read_sensors()
+                        turn_left(TURN_SPEED)
+                        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+                    else:
+                        while USvorne > 10:
+                            forward(BASE_SPEED)
+                            USvorne, USrechts = sensors.read_ultrasonics()
+                            left, right, gruen = read_sensors()
+                        turn_left(TURN_SPEED)
+                        time.sleep(QUARTER_TIME)  # 180° anpassen nach bedarf
+
                 _white_start_time = None
     else:
         _white_start_time = None
