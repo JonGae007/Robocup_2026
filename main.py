@@ -58,23 +58,20 @@ def line_follow():
             # Beide Sensoren auf Linie -> Geradeaus
             forward(BASE_SPEED)
             status = "Geradeaus"
-           
+            left, right, gruen = read_sensors()
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
-            
             status = "Rechts"
             forward(BASE_SPEED)
+            left, right, gruen = read_sensors()
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
-            
             status = "Links"
+            left, right, gruen = read_sensors()
 
         forward(BASE_SPEED)
-        # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
-        forward(BASE_SPEED // 2)
-        status = "Linie verloren"
         
         print(f"L: {left:4d} | R: {right:4d} | {status}")
 
