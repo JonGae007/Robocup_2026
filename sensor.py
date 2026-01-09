@@ -125,6 +125,63 @@ def set_scaling(scale="100"):
     """Öffentliche API, um S0/S1-Scaling einzustellen."""
     _set_scaling(scale)
 
+# --- Ultraschall (HC-SR04) Unterstützung ---
+# Pins (BCM) wie vom Benutzer angegeben
+US1_TRIG = 23
+US1_ECHO = 24
+US2_TRIG = 17
+US2_ECHO = 27
+
+# Setup der Ultraschall-Pins
+GPIO.setup(US1_TRIG, GPIO.OUT)
+GPIO.setup(US1_ECHO, GPIO.IN)
+GPIO.setup(US2_TRIG, GPIO.OUT)
+GPIO.setup(US2_ECHO, GPIO.IN)
+GPIO.output(US1_TRIG, GPIO.LOW)
+GPIO.output(US2_TRIG, GPIO.LOW)
+
+def _pulse_high(pin, duration=0.00001):
+    """Sendet einen kurzen HIGH-Puls auf `pin` (Trigger)."""
+    GPIO.output(pin, GPIO.HIGH)
+    time.sleep(duration)
+    GPIO.output(pin, GPIO.LOW)
+
+def _measure_distance(trigger_pin, echo_pin, timeout=0.02):
+    """Misst die Entfernung in cm für einen einzelnen HC-SR04.
+
+    Gibt `None` zurück, wenn kein Echo innerhalb des Timeouts empfangen wird.
+    """
+    # Trigger senden
+    _pulse_high(trigger_pin)
+
+    start_time = time.time()
+    # Warte auf steigende Flanke (Echo beginnt)
+    while GPIO.input(echo_pin) == 0:
+        if time.time() - start_time > timeout:
+            return None
+    t_start = time.time()
+
+    # Warte auf fallende Flanke (Echo endet)
+    while GPIO.input(echo_pin) == 1:
+        if time.time() - t_start > timeout:
+            return None
+    t_end = time.time()
+
+    dt = t_end - t_start
+    # Schallgeschwindigkeit ~34300 cm/s; Strecke hin+zurück => /2
+    distance_cm = (dt * 34300.0) / 2.0
+    return distance_cm
+
+def read_ultrasonics():
+    """Liest beide Ultraschall-Sensoren und gibt ein Tupel (d1, d2) zurück.
+
+    Werte sind in cm oder `None` bei Timeouts.
+    """
+    d1 = _measure_distance(US1_TRIG, US1_ECHO)
+    time.sleep(0.01)
+    d2 = _measure_distance(US2_TRIG, US2_ECHO)
+    return d1, d2
+
 # Beispiel für die Verwendung:
 if __name__ == "__main__":
     try:

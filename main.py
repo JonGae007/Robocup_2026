@@ -5,6 +5,7 @@ import traceback
 
 import RPi.GPIO as GPIO
 from motor import *
+import sensor as sensors
 
 SWITCH_PIN = 25  # Schalter-Pin (BCM)
 SENSOR_LEFT_PIN = 5   # GPIO5 - entspricht Pin 16 (links) am ESP32
@@ -163,7 +164,14 @@ def main():
                 line_follow()
             else:
                 stop()
-                time.sleep(0.01)
+                # Ultraschall-Entfernungen auslesen, wenn nicht aktiv
+                try:
+                    d1, d2 = sensors.read_ultrasonics()
+                    print(f"US1: {d1 if d1 is not None else 'Timeout':>7} cm | US2: {d2 if d2 is not None else 'Timeout':>7} cm")
+                except Exception:
+                    # Bei Problemen mit GPIO/Hardware nicht abstürzen
+                    pass
+                time.sleep(0.5)
             
     except KeyboardInterrupt:
         print("\nBeendet durch Benutzer (STRG+C).")
