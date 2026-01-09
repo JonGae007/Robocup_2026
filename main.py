@@ -29,6 +29,38 @@ TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
 QUARTER_TIME = 0.5    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
 HALF_TIME = 1       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
 
+# Globale Variable für White-Timer
+_white_start_time = None
+
+def endzone(left, right, threshold=4.0):
+    """Erkennt, wenn beide Sensoren für eine bestimmte Zeit auf Weiß sind und führt dann eine Drehung aus.
+    
+    Args:
+        left: Sensor links Wert (0=weiß, 1=schwarz)
+        right: Sensor rechts Wert (0=weiß, 1=schwarz)
+        threshold: Zeit in Sekunden, nach der die Aktion ausgelöst wird (default: 1.0)
+    """
+    global _white_start_time
+    
+    if not left and not right:
+        if _white_start_time is None:
+            _white_start_time = time.time()
+        else:
+            elapsed = time.time() - _white_start_time
+            forward(BASE_SPEED)
+            if elapsed >= threshold:
+                # Aktion: kurz stoppen, dann drehen
+                stop()
+                time.sleep(0.2)
+                # Drehe (90°) — Richtung kann bei Bedarf angepasst werden
+                turn_right(TURN_SPEED)
+                time.sleep(QUARTER_TIME)
+                stop()
+                # Timer zurücksetzen nach Aktion
+                _white_start_time = None
+    else:
+        _white_start_time = None
+
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
     time.sleep(DEBOUNCE)
@@ -97,6 +129,7 @@ def line_follow():
             status = "Geradeaus"
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
+            endzone(left, right)
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
@@ -104,13 +137,18 @@ def line_follow():
             forward(BASE_SPEED)
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
+            endzone(left, right)
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
             status = "Links"
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
+            endzone(left, right)
 
+        # Endzone-Check auch außerhalb der while-Schleifen (für den Fall: beide Sensoren weiß)
+        endzone(left, right)
+        
         forward(BASE_SPEED)
         
         
