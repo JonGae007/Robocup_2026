@@ -50,31 +50,31 @@ def line_follow():
     while schalterGedrueckt():
         left, right, gruen = read_sensors()
         
-        if left is None or right is None:
+        while left is None or right is None:
             continue  # ungültige Daten, nächster Durchlauf
         
         # Steuerungslogik
-        if left and right:
+        while left and right:
             # Beide Sensoren auf Linie -> Geradeaus
             forward(BASE_SPEED)
             status = "Geradeaus"
-            time.sleep(0.01)
-        elif left and not right:
+           
+        while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
-            time.sleep(0.01)
+            
             status = "Rechts"
             forward(BASE_SPEED)
-        elif not left and right:
+        while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
-            time.sleep(0.01)
+            
             status = "Links"
-            forward(BASE_SPEED)
-        else:
-            # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
-            forward(BASE_SPEED // 2)
-            status = "Linie verloren"
+
+        forward(BASE_SPEED)
+        # Keine Linie erkannt -> Stoppen oder langsam weiterfahren
+        forward(BASE_SPEED // 2)
+        status = "Linie verloren"
         
         print(f"L: {left:4d} | R: {right:4d} | {status}")
 
