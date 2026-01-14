@@ -7,8 +7,8 @@ class MotorController:
 			defaults = {
 				'HR_IN1': 16,
 				'HR_IN2': 12,
-				'VR_IN1': 13,
-				'VR_IN2': 20,
+				'VR_IN1': 20,
+				'VR_IN2': 13,
 				'VL_IN1': 18,
 				'VL_IN2': 21,
 				'HL_IN1': 26,
