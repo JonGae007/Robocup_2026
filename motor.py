@@ -40,6 +40,12 @@ def turn_left(speed=60):
 	controller.set_wheel('VL', -speed)
 	controller.set_wheel('HL', -speed)
 
+def speedcontrol(speedl, speedr):
+	controller.set_wheel('VR', speedr)
+	controller.set_wheel('HR', speedr)
+	controller.set_wheel('VL', speedl)
+	controller.set_wheel('HL', speedl)
+
 def stop():
 	controller.stop()
 

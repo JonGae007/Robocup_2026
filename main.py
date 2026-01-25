@@ -2,6 +2,7 @@
 import sys
 import time
 import traceback
+import random
 
 import RPi.GPIO as GPIO
 from motor import *
@@ -48,29 +49,19 @@ def endzone(left, right, threshold=4.0):
             _white_start_time = time.time()
         else:
             elapsed = time.time() - _white_start_time
-            forward(BASE_SPEED)
             if elapsed >= threshold:
                 USvorne, USrechts = sensors.read_ultrasonics()
-                while not left and not right:
+                left, right, gruen = read_sensors()
+                while True:
                     USvorne, USrechts = sensors.read_ultrasonics()
                     left, right, gruen = read_sensors()
-                    if USrechts > 10:
-                        turn_right(TURN_SPEED)
-                        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
-                        while USvorne > 10:
-                            forward(BASE_SPEED)
-                            USvorne, USrechts = sensors.read_ultrasonics()
-                            left, right, gruen = read_sensors()
-                        turn_left(TURN_SPEED)
-                        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
-                    else:
-                        while USvorne > 10:
-                            forward(BASE_SPEED)
-                            USvorne, USrechts = sensors.read_ultrasonics()
-                            left, right, gruen = read_sensors()
-                        turn_left(TURN_SPEED)
-                        time.sleep(QUARTER_TIME)  # 180° anpassen nach bedarf
-
+                    print(f"ENDZONE | USv: {USvorne} | USr: {USrechts} | L: {left} | R: {right}")
+                    forward(BASE_SPEED)
+                    if USvorne is not None and USvorne < 3:
+                        turn_left(50)
+                        time.sleep(random.uniform(0.3, 1.3))
+                    if left or right or not schalterGedrueckt():
+                        break
                 _white_start_time = None
     else:
         _white_start_time = None
@@ -144,6 +135,7 @@ def line_follow():
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
             endzone(left, right)
+            check_Hindernis()
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
@@ -152,6 +144,7 @@ def line_follow():
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
             endzone(left, right)
+            check_Hindernis()
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
@@ -159,14 +152,26 @@ def line_follow():
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
             endzone(left, right)
+            check_Hindernis()
 
         # Endzone-Check auch außerhalb der while-Schleifen (für den Fall: beide Sensoren weiß)
         endzone(left, right)
+        check_Hindernis()
         
         forward(BASE_SPEED)
         
         
         print(f"L: {left:4d} | R: {right:4d} ")
+
+def check_Hindernis():
+    USvorne, USrechts = sensors.read_ultrasonics()
+    left, right, gruen = read_sensors()
+    if USvorne is not None and USvorne < 10:
+        turn_left(50)
+        time.sleep(0.5)
+        while not left:
+            left, right, gruen = read_sensors()
+            speedcontrol(60,30)
 
 def main():
     try:
@@ -174,6 +179,7 @@ def main():
         
         while True:
             if schalterGedrueckt():
+                forward(BASE_SPEED)
                 line_follow()
             else:
                 stop()
