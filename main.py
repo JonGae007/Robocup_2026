@@ -31,8 +31,10 @@ TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
 QUARTER_TIME = 0.5    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
 HALF_TIME = 1       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
 
-# Globale Variable für White-Timer
+# Globale Variablen
 _white_start_time = None
+_last_green_time = None
+GREEN_COOLDOWN = 3.0  # Sekunden Pause nach Grün-Erkennung
 
 def endzone(left, right, threshold=4.0):
     """Erkennt, wenn beide Sensoren für eine bestimmte Zeit auf Weiß sind und führt dann eine Drehung aus.
@@ -93,29 +95,33 @@ def check_green_and_react(left, right, gruen):
         right: Sensor rechts Wert  
         gruen: Grün-Sensor Wert
     """
-    if gruen and right and not left:
-        GPIO.output(LED_PIN, GPIO.HIGH)
-        time.sleep(0.1)
-        GPIO.output(LED_PIN, GPIO.LOW)
-        turn_right(TURN_SPEED)
-        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
-        time.sleep(0.2)
-
-    if gruen and left and not right:
-        GPIO.output(LED_PIN, GPIO.HIGH)
-        time.sleep(0.1)
-        GPIO.output(LED_PIN, GPIO.LOW)
-        turn_left(TURN_SPEED)
-        time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+    if gruen and (right or left):
         forward(BASE_SPEED)
-        time.sleep(0.1)
-        
-    if gruen and left and right:
-        GPIO.output(LED_PIN, GPIO.HIGH)
-        time.sleep(0.1)
-        GPIO.output(LED_PIN, GPIO.LOW)
-        turn_right(TURN_SPEED)
-        time.sleep(HALF_TIME)  # 180° anpassen nach bedarf
+        time.sleep(0.01)
+        if gruen and right and not left:
+            GPIO.output(LED_PIN, GPIO.HIGH)
+            time.sleep(0.1)
+            GPIO.output(LED_PIN, GPIO.LOW)
+            turn_right(TURN_SPEED)
+            time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+            time.sleep(0.2)
+            print("Grün erkannt: 90° Drehung Right")
+
+        if gruen and left and not right:
+            GPIO.output(LED_PIN, GPIO.HIGH)
+            time.sleep(0.1)
+            GPIO.output(LED_PIN, GPIO.LOW)
+            turn_left(TURN_SPEED)
+            time.sleep(QUARTER_TIME)  # 90° anpassen nach bedarf
+            print("Grün erkannt: 90° Drehung Left")
+            
+        if gruen and left and right:
+            GPIO.output(LED_PIN, GPIO.HIGH)
+            time.sleep(0.1)
+            GPIO.output(LED_PIN, GPIO.LOW)
+            turn_right(TURN_SPEED)
+            time.sleep(HALF_TIME)  # 180° anpassen nach bedarf
+            print("Grün erkannt: 180° Drehung")
 
 def line_follow():
     """Hauptschleife für Linienverfolgung."""
@@ -127,6 +133,9 @@ def line_follow():
         while left is None or right is None:
             continue  # ungültige Daten, nächster Durchlauf
         
+        # Hinderniserkennung einmal pro Hauptschleife
+        check_Hindernis()
+        
         # Steuerungslogik
         while left and right:
             # Beide Sensoren auf Linie -> Geradeaus
@@ -135,7 +144,7 @@ def line_follow():
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
             endzone(left, right)
-            check_Hindernis()
+            
         while left and not right:
             # Nur linker Sensor auf Linie -> Nach rechts korrigieren
             turn_left(TURN_SPEED)
@@ -144,7 +153,7 @@ def line_follow():
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
             endzone(left, right)
-            check_Hindernis()
+            
         while not left and right:
             # Nur rechter Sensor auf Linie -> Nach links korrigieren
             turn_right(TURN_SPEED)
@@ -152,11 +161,11 @@ def line_follow():
             left, right, gruen = read_sensors()
             check_green_and_react(left, right, gruen)
             endzone(left, right)
-            check_Hindernis()
+            
 
         # Endzone-Check auch außerhalb der while-Schleifen (für den Fall: beide Sensoren weiß)
         endzone(left, right)
-        check_Hindernis()
+        
         
         forward(BASE_SPEED)
         
@@ -167,11 +176,26 @@ def check_Hindernis():
     USvorne, USrechts = sensors.read_ultrasonics()
     left, right, gruen = read_sensors()
     if USvorne is not None and USvorne < 10:
+        print(f"---Hindernis erkannt!---")
         turn_left(50)
+        time.sleep(0.3)
+        forward(20)
+        time.sleep(0.8)
+        stop()
         time.sleep(0.5)
-        while not left:
+        speedcontrol(60, 13)
+        while True:
             left, right, gruen = read_sensors()
-            speedcontrol(60,30)
+            time.sleep(0.1)
+            if left:
+                turn_left(40)
+                time.sleep(0.5)
+                if right or not schalterGedrueckt():
+                    turn_right(40)
+                    time.sleep(0.1)
+                    break
+
+        
 
 def main():
     try:
