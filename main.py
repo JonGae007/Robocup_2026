@@ -211,7 +211,17 @@ def check_Hindernis():
                     time.sleep(0.1)
                     break
 
+<<<<<<< Updated upstream
 
+=======
+def checkRot():
+    left, right, gruen = read_sensors()
+    if not left and not right and not gruen:
+        print("Rot erkannt: Programmabbruch!")
+        stop()
+        sys.exit(0)
+        
+>>>>>>> Stashed changes
 
 def main():
     try:
