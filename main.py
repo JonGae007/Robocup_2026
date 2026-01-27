@@ -26,8 +26,8 @@ GPIO.output(LED_PIN, GPIO.LOW)
 DEBOUNCE = 0.02
 
 # Linienverfolger Konfiguration
-BASE_SPEED = 20        # Grundgeschwindigkeit
-TURN_SPEED = 80 #Geschwindigkeit beim Abbiegen
+BASE_SPEED = 15        # Grundgeschwindigkeit
+TURN_SPEED = 20 #Geschwindigkeit beim Abbiegen
 QUARTER_TIME = 0.5    # Zeit für eine 90° Drehung (anpassen nach Bedarf)
 HALF_TIME = 1       # Zeit für eine 180° Drehung (anpassen nach Bedarf)
 
@@ -59,9 +59,20 @@ def endzone(left, right, threshold=4.0):
                     left, right, gruen = read_sensors()
                     print(f"ENDZONE | USv: {USvorne} | USr: {USrechts} | L: {left} | R: {right}")
                     forward(BASE_SPEED)
+                    while USrechts is not None and USrechts < 10:
+                        USvorne, USrechts = sensors.read_ultrasonics()
+                        left, right, gruen = read_sensors()
+                        forward(BASE_SPEED)
+                        if USvorne is not None and USvorne < 3:
+                            turn_left(TURN_SPEED)
+                            time.sleep(QUARTER_TIME)
+                    turn_right(TURN_SPEED)
+                    time.sleep(QUARTER_TIME)
+
                     if USvorne is not None and USvorne < 3:
-                        turn_left(50)
-                        time.sleep(random.uniform(0.3, 1.3))
+                            turn_left(TURN_SPEED)
+                            time.sleep(QUARTER_TIME)
+                        
                     if left or right or not schalterGedrueckt():
                         break
                 _white_start_time = None
@@ -137,31 +148,36 @@ def line_follow():
         check_Hindernis()
         
         # Steuerungslogik
-        while left and right:
-            # Beide Sensoren auf Linie -> Geradeaus
+        if left and right:
             forward(BASE_SPEED)
-            status = "Geradeaus"
-            left, right, gruen = read_sensors()
-            check_green_and_react(left, right, gruen)
-            endzone(left, right)
+            while left and right:
+                # Beide Sensoren auf Linie -> Geradeaus
+                time.sleep(0.01)
+                status = "Geradeaus"
+                left, right, gruen = read_sensors()
+                check_green_and_react(left, right, gruen)
+                endzone(left, right)
             
-        while left and not right:
-            # Nur linker Sensor auf Linie -> Nach rechts korrigieren
-            turn_left(TURN_SPEED)
-            status = "Rechts"
-            forward(BASE_SPEED)
-            left, right, gruen = read_sensors()
-            check_green_and_react(left, right, gruen)
-            endzone(left, right)
+        if left and not right:
+            speedcontrol(-30, 20)
+            while left and not right:
+                # Nur linker Sensor auf Linie -> Nach rechts korrigieren
+                time.sleep(0.01)
+                status = "Rechts"
+                left, right, gruen = read_sensors()
+                check_green_and_react(left, right, gruen)
+                endzone(left, right)
             
-        while not left and right:
-            # Nur rechter Sensor auf Linie -> Nach links korrigieren
-            turn_right(TURN_SPEED)
-            status = "Links"
-            left, right, gruen = read_sensors()
-            check_green_and_react(left, right, gruen)
-            endzone(left, right)
-            
+        if not left and right:
+            speedcontrol(20, -30)
+            while not left and right:
+                # Nur rechter Sensor auf Linie -> Nach links korrigieren
+                time.sleep(0.01)
+                status = "Links"
+                left, right, gruen = read_sensors()
+                check_green_and_react(left, right, gruen)
+                endzone(left, right)
+                
 
         # Endzone-Check auch außerhalb der while-Schleifen (für den Fall: beide Sensoren weiß)
         endzone(left, right)
@@ -195,7 +211,7 @@ def check_Hindernis():
                     time.sleep(0.1)
                     break
 
-        
+
 
 def main():
     try:
