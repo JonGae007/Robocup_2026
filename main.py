@@ -59,26 +59,14 @@ def endzone(left, right, threshold=4.0):
                     left, right, gruen = read_sensors()
                     print(f"ENDZONE | USv: {USvorne} | USr: {USrechts} | L: {left} | R: {right}")
                     forward(BASE_SPEED)
-                    while USrechts is not None and USrechts < 10:
-                        USvorne, USrechts = sensors.read_ultrasonics()
-                        left, right, gruen = read_sensors()
-                        forward(BASE_SPEED)
-                        if USvorne is not None and USvorne < 3:
-                            turn_left(TURN_SPEED)
-                            time.sleep(QUARTER_TIME)
-                    turn_right(TURN_SPEED)
-                    time.sleep(QUARTER_TIME)
-
                     if USvorne is not None and USvorne < 3:
-                            turn_left(TURN_SPEED)
-                            time.sleep(QUARTER_TIME)
-                        
+                        turn_left(50)
+                        time.sleep(random.uniform(0.3, 1.3))
                     if left or right or not schalterGedrueckt():
                         break
                 _white_start_time = None
     else:
         _white_start_time = None
-
 def schalterGedrueckt():
     state = GPIO.input(SWITCH_PIN)
     time.sleep(DEBOUNCE)
